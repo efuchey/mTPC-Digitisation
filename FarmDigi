@@ -1,0 +1,50 @@
+#!/bin/tcsh
+#PBS -N FarmDigi
+#PBS -m n
+#PBS -M Rachel.Montgomery@glasgow.ac.uk
+#PBS -V
+#PBS -l walltime=400:00:00
+
+echo  "Passed run # $RUNNUMBER to FarmDigi"
+
+cd ${BATCH_DIR}
+
+# set executable directory
+set SimDir = "/home/rachel/geant4/TDIS_digi/CheckChargeShare/mTPC-DigiChargeShare"
+
+# Set up the directories on work
+setenv IN_DIR_WORK /w/work0/home/rachel/TDIS/EPC/Feb26-2p8T/g4sbsout
+setenv OUT_DIR_WORK /w/work0/home/rachel/TDIS/EPC/Feb26-2p8T/DigiOut/NoXYZ
+
+echo "Work input directory is $IN_DIR_WORK"
+echo "Work output directory is $OUT_DIR_WORK"
+
+# Make temporary directories etc
+set tempdirfile = $TEMPDIR/$RUNNUMBER
+mkdir -p $tempdirfile
+
+set SimFileName = "g4sbsout_EPCEvents_$RUNNUMBER.root"
+
+cp ${IN_DIR_WORK}/$SimFileName ${tempdirfile}/
+
+set SimFile = "${tempdirfile}/$SimFileName"
+echo "sim file $SimFile"
+set SimFileRoot = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER"
+echo "sim file for root $SimFileRoot"
+
+cd ${SimDir}
+# april2026, below is simple
+#root -b -q 'DigiSimpleFarm.cpp('$RUNNUMBER')'
+# april 2026 below is for with charge share
+root -b -q 'FarmDigiChargeShare.cpp('$RUNNUMBER')'
+
+# Tidy up
+#cd ${BATCH_DIR}
+cd ${SimDir}
+
+set OutFileName = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER.txt"
+
+cp $OutFileName ${OUT_DIR_WORK}/
+rm -f $SimFile
+rm -rf $OutFileName
+rm -rf ${tempdirfile}
