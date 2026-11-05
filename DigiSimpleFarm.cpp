@@ -45,7 +45,6 @@ const Int_t Nevents = 10000;
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
 void DigiSimpleFarm(Int_t EvStart){
 
-
   //============================================================================
   // CHECK START EVENT
   // std::string str = infile;
@@ -172,7 +171,8 @@ void DigiSimpleFarm(Int_t EvStart){
   ofstream TxtFileOut;
   TxtFileOut.open (txtfile);
 
-  
+
+  Bool_t primary_flag = false;
   //============================================================================
   // EVENT LOOP
   
@@ -203,7 +203,9 @@ void DigiSimpleFarm(Int_t EvStart){
      
      // mTPC hits
      Int_t mTPC_nHitsPerEvent = T->SBS_mTPC_hit_nhits;
-     
+     Int_t PID;
+     Double_t primary_fraction;
+     Double_t totalenergydeposit;
      Double_t energydepositedbyhit;
      Double_t hitx;
      Double_t hity;
@@ -212,10 +214,16 @@ void DigiSimpleFarm(Int_t EvStart){
      // cout << "new event" << endl;
      
      for(int hitinc = 0; hitinc<T->SBS_mTPC_hit_nhits; hitinc++){
-       if( (*(T->SBS_mTPC_hit_pid))[hitinc]!=2212 || 
-	   (*(T->SBS_mTPC_hit_mid))[hitinc]!=0)continue;
-       
+       //below will have to disappear
+       // if( (*(T->SBS_mTPC_hit_pid))[hitinc]!=2212 || 
+       // 	   (*(T->SBS_mTPC_hit_mid))[hitinc]!=0)continue;
+
+       PID = (*(T->SBS_mTPC_hit_pid))[hitinc];
+              
        energydepositedbyhit = (*(T->SBS_mTPC_hit_edep))[hitinc];
+       totalenergydeposit+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+       if((*(T->SBS_mTPC_hit_pid))[hitinc]==2212) && primary_flag)primary_fraction+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+	 
        // hitx =  (*(T->SBS_mTPC_hit_xhit))[hitinc];
        // hity =  (*(T->SBS_mTPC_hit_yhit))[hitinc];
        // hitz =  (*(T->SBS_mTPC_hit_zhit))[hitinc];
@@ -260,6 +268,8 @@ void DigiSimpleFarm(Int_t EvStart){
 	     // 	  << endl; // convert z to gem in m
 
              TxtFileOut << "\t" << right << TotalTime << "\t"
+			<< right << PID << "\t"
+			<< right << primary_fraction/totalenergydeposit << "\t"
 	     		<< right << energydepositedbyhit  << "\t"
 	     		<< right << hitx << "\t"
 	     		<< right << hity << "\t"
