@@ -40,6 +40,7 @@ const Int_t GEMGain = 1000;//700;//1000; //is typical gem gain 1k?
 // const Int_t Nevents = 50000;
 const Int_t Nevents = 10000;
 
+
 //==============================================================================
 // START MAIN FUNCTION
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
@@ -55,7 +56,24 @@ void DigiSimpleFarm(Int_t EvStart){
   // int id = atoi(str.c_str());
   // cout << "testing id " << id << endl;
   // Int_t EvStart=id;
-
+  Double_t POIEnergyDeposit[10][21][122];//Energy deposit due to "Primaries" ()
+  Double_t TotalEnergyDeposit[10][21][122];
+  //Int_t PID_poihit[10][21][122];//PID of largest energy deposit
+  Double_t TotalTime_poihit[10][21][122];
+  Double_t ZtoGEM_poihit[10][21][122];
+  Double_t x_poihit[10][21][122];
+  Double_t y_poihit[10][21][122];
+  Double_t z_poihit[10][21][122];
+  Int_t PID_hiedephit[10][21][122];//PID of largest energy deposit
+  Double_t TotalTime_hiedephit[10][21][122];
+  Double_t ZtoGEM_hiedephit[10][21][122];
+  Double_t x_hiedephit[10][21][122];
+  Double_t y_hiedephit[10][21][122];
+  Double_t z_hiedephit[10][21][122];
+  Double_t hiedephit[10][21][122];
+  //Double_t ADCSamples[10][21][122][];
+  Int_t n_memset_int = nPads_mTPC*size_of(Int_t);
+  Int_t n_memset_double = nPads_mTPC*size_of(Double_t);
   
   //============================================================================
   // FLAGS AND VARIABLES
@@ -171,133 +189,192 @@ void DigiSimpleFarm(Int_t EvStart){
   ofstream TxtFileOut;
   TxtFileOut.open (txtfile);
 
+  int planeid, ringid, padid;
 
-  Bool_t primary_flag = false;
+  Bool_t POI_flag = false;
   //============================================================================
   // EVENT LOOP
   
   // Variables outside loop
   //------------------------------------------------------------ start event loop
-  for(Int_t i=0; i<Nevents; i++){   
-  // for(Int_t i=0; i<10; i++){     
-  
-  // for(Int_t i=0; i<1; i++){     
-     // cout << endl;
-     // cout << "On event " << i << " / " << NEventsChain << endl;
-     T->GetEntry(i);
-     if (EventCounter % 1000 == 0) cout << EventCounter << "/" << NEventsChain << endl;
+  // for TDIS events, Set "ProtonOfInterest" flag to true!
+  POI_flag = true;
+  for(Int_t i=0; i<Nevents; i++){
+    //reinitialize arrays:
+    memset(POIEnergyDeposit, n_memset_double, 0);
+    memset(TotalEnergyDeposit, n_memset_double, 0);
+    //memset(PID_poihit, n_memset_int, 0);
+    memset(TotalTime_poihit, n_memset_double, 0);
+    memset(ZtoGEM_poihit, n_memset_double, 0);
+    memset(x_poihit, n_memset_double, 0);
+    memset(y_poihit, n_memset_double, 0);
+    memset(z_poihit, n_memset_double, 0);
+    memset(PID_hiedephit, n_memset_int, 0);
+    memset(TotalTime_hiedephit, n_memset_double, 0);
+    memset(ZtoGEM_hiedephit, n_memset_double, 0);
+    memset(x_hiedephit, n_memset_double, 0);
+    memset(y_hiedephit, n_memset_double, 0);
+    memset(z_hiedephit, n_memset_double, 0);
+    memset(hiedephit, n_memset_double, 0);
+    
+    // for(Int_t i=0; i<10; i++){     
+    // for(Int_t i=0; i<1; i++){     
+    // cout << endl;
+    // cout << "On event " << i << " / " << NEventsChain << endl;
+    T->GetEntry(i);
+    if (EventCounter % 1000 == 0) cout << EventCounter << "/" << NEventsChain << endl;
+    
+    Int_t evid = EvStart+i;
+    TxtFileOut << "Event " << right << evid << "\n";
+    // TxtFileOut << "Event " << right << i << "\n";
+     
+    // for acqu
+    TVector3 vprimary(T->AcquMCPrimaries_Px, T->AcquMCPrimaries_Py, T->AcquMCPrimaries_Pz);
+    Double_t thetaprimary = vprimary.Theta()*TMath::RadToDeg();
+    Double_t phiprimary = vprimary.Phi()*TMath::RadToDeg();
+    TxtFileOut << "\t" << right << T->AcquMCPrimaries_Pt
+	       << "\t" << right << thetaprimary
+	       << "\t" << right << phiprimary
+	       << "\t" << right << T->AcquMCPrimaries_Vz
+	       << "\n";
+     
+    // mTPC hits
+    Int_t mTPC_nHitsPerEvent = T->SBS_mTPC_hit_nhits;
+    Int_t PID;
+    Double_t primary_fraction;
+    Double_t totalenergydeposit;
+    Double_t energydepositedbyhit;
+    Double_t hitx;
+    Double_t hity;
+    Double_t hitz;
+    Double_t hitr;
+    // cout << "new event" << endl;
+    
+    for(int hitinc = 0; hitinc<T->SBS_mTPC_hit_nhits; hitinc++){
+      
+      hitx =  (*(T->SBS_mTPC_hit_xhit))[hitinc];
+      hity =  (*(T->SBS_mTPC_hit_yhit))[hitinc];
+      hitz =  (*(T->SBS_mTPC_hit_zhit))[hitinc];
+      
+      GetPadLoadedSuperQuick(hitx*1000.0,
+			     hity*1000.0,
+			     hitz*1000.0,
+			     planeid,
+			     ringid,
+			     padid);
+      
+      Double_t HitTime = (*(T->SBS_mTPC_hit_tavg))[hitinc];
+      // ztogem must be in cm since diff coeffs in cm
+      Double_t ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+      ztogem = ztogem/10.0; // convert to cm
+      Double_t driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+      Double_t TotalTime = HitTime+driftime;
 
-     Int_t evid = EvStart+i;
-     TxtFileOut << "Event " << right << evid << "\n";
-     // TxtFileOut << "Event " << right << i << "\n";
-     
-     // for acqu
-     TVector3 vprimary(T->AcquMCPrimaries_Px, T->AcquMCPrimaries_Py, T->AcquMCPrimaries_Pz);
-     Double_t thetaprimary = vprimary.Theta()*TMath::RadToDeg();
-     Double_t phiprimary = vprimary.Phi()*TMath::RadToDeg();
-     TxtFileOut << "\t" << right << T->AcquMCPrimaries_Pt
-		<< "\t" << right << thetaprimary
-		<< "\t" << right << phiprimary
-		<< "\t" << right << T->AcquMCPrimaries_Vz
-		<< "\n";
-     
-     // mTPC hits
-     Int_t mTPC_nHitsPerEvent = T->SBS_mTPC_hit_nhits;
-     Int_t PID;
-     Double_t primary_fraction;
-     Double_t totalenergydeposit;
-     Double_t energydepositedbyhit;
-     Double_t hitx;
-     Double_t hity;
-     Double_t hitz;
-     Double_t hitr;
-     // cout << "new event" << endl;
-     
-     for(int hitinc = 0; hitinc<T->SBS_mTPC_hit_nhits; hitinc++){
-       //below will have to disappear
-       // if( (*(T->SBS_mTPC_hit_pid))[hitinc]!=2212 || 
-       // 	   (*(T->SBS_mTPC_hit_mid))[hitinc]!=0)continue;
+      
+      TotalEnergyDeposit[planeid][ringid][padid]+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+      if( (*(T->SBS_mTPC_hit_pid))[hitinc]==2212 && POI_flag){
+	POI_fraction[planeid][ringid][padid]+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+	//PID_poihit[planeid][ringid][padid] = 2212;
+	TotalTime_poihit[planeid][ringid][padid] = TotalTime;
+	ZtoGEM_poihit[planeid][ringid][padid] = ztogem;
+	x_poihit[planeid][ringid][padid] = hitx;
+	y_poihit[planeid][ringid][padid] = hity;
+	z_poihit[planeid][ringid][padid] = hitz;
+      }
 
-       PID = (*(T->SBS_mTPC_hit_pid))[hitinc];
+      if((*(T->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
+	hiedephit[planeid][ringid][padid] = (*(T->SBS_mTPC_hit_edep))[hitinc];
+	PID_hiedephit[planeid][ringid][padid] = (*(T->SBS_mTPC_hit_pid))[hitinc];
+	TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
+	ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
+	x_hiedephit[planeid][ringid][padid] = hitx;
+	y_hiedephit[planeid][ringid][padid] = hity;
+	z_hiedephit[planeid][ringid][padid] = hitz;
+      }
+      
+      //energydepositedbyhit[] = (*(T->SBS_mTPC_hit_edep))[hitinc];
+      
+      //below will have to disappear
+      // if( (*(T->SBS_mTPC_hit_pid))[hitinc]!=2212 || 
+      // 	   (*(T->SBS_mTPC_hit_mid))[hitinc]!=0)continue;
+      
+      //energydepositedbyhit = (*(T->SBS_mTPC_hit_edep))[hitinc];
+      //totalenergydeposit+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+      //
+      
+      //PID = (*(T->SBS_mTPC_hit_pid))[hitinc];
               
-       energydepositedbyhit = (*(T->SBS_mTPC_hit_edep))[hitinc];
-       totalenergydeposit+= (*(T->SBS_mTPC_hit_edep))[hitinc];
-       if((*(T->SBS_mTPC_hit_pid))[hitinc]==2212) && primary_flag)primary_fraction+= (*(T->SBS_mTPC_hit_edep))[hitinc];
-	 
-       // hitx =  (*(T->SBS_mTPC_hit_xhit))[hitinc];
-       // hity =  (*(T->SBS_mTPC_hit_yhit))[hitinc];
-       // hitz =  (*(T->SBS_mTPC_hit_zhit))[hitinc];
-       hitx =  (*(T->SBS_mTPC_hit_xhitg))[hitinc];
-       hity =  (*(T->SBS_mTPC_hit_yhitg))[hitinc];
-       hitz =  (*(T->SBS_mTPC_hit_zhitg))[hitinc];
-       hitr = TMath::Sqrt(hitx*hitx + hity*hity);
-       // if(hitr<0.05)
-       // cout << "hitr " << hitr << endl;
+      // hitx =  (*(T->SBS_mTPC_hit_xhitg))[hitinc];
+      // hity =  (*(T->SBS_mTPC_hit_yhitg))[hitinc];
+      // hitz =  (*(T->SBS_mTPC_hit_zhitg))[hitinc];
+      // hitr = TMath::Sqrt(hitx*hitx + hity*hity);
+      // if(hitr<0.05)
+      // cout << "hitr " << hitr << endl;
        
-       Double_t HitTime = (*(T->SBS_mTPC_hit_tavg))[hitinc];
-       
-       // ztogem must be in cm since diff coeffs in cm
-       Double_t ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
-       ztogem = ztogem/10.0; // convert to cm
-       
-       Double_t driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-       
-       // get pad loaded script deals in mm
-       // g4 out is in m, smearing is cm, so convert cm to mm in end
-       vector<int> vhitpad;
-       vhitpad = GetPadLoadedQuick(hitx*1000.0,
-				   hity*1000.0,
-				   hitz*1000.0,
-				   hReadoutPads);
-       
-       // cout << "Hit bin " << meansmearedhitpad[0]
-       //      << " hit ring " << meansmearedhitpad[1]
-       //      << " hit pad " << meansmearedhitpad[2]
-       //      << " hit plane " << meansmearedhitpad[3]
-       //      << " hit bin area " << BinArea << endl;
-
-       Double_t TotalTime = HitTime+driftime;
        
 
-             // TxtFileOut << "\t" << right << TotalTime << "\t"
-	     // 	  << right << energydepositedbyhit  << "\t"
-	     // 	  << right << vhitpad[1] << "\t"
-	     // 	  << right << vhitpad[2] << "\t"
-	     // 	  << right << vhitpad[3] << "\t"
-	     // 	  << right << ztogem/100.0 << "\t"
-	     // 	  << endl; // convert z to gem in m
-
-             TxtFileOut << "\t" << right << TotalTime << "\t"
-			<< right << PID << "\t"
-			<< right << primary_fraction/totalenergydeposit << "\t"
-	     		<< right << energydepositedbyhit  << "\t"
-	     		<< right << hitx << "\t"
-	     		<< right << hity << "\t"
-	     		<< right << hitz << "\t"
-	     		<< right << vhitpad[1] << "\t"
-	     		<< right << vhitpad[2] << "\t"
-	     		<< right << vhitpad[3] << "\t"
-	     		<< right << ztogem/100.0 << "\t"
-	     		<< endl; // convert z to gem in m
-	     
-       // clear vectors
-       vhitpad.clear();
+      // TxtFileOut << "\t" << right << TotalTime << "\t"
+      // 	  << right << energydepositedbyhit  << "\t"
+      // 	  << right << vhitpad[1] << "\t"
+      // 	  << right << vhitpad[2] << "\t"
+      // 	  << right << vhitpad[3] << "\t"
+      // 	  << right << ztogem/100.0 << "\t"
+      // 	  << endl; // convert z to gem in m
+      // clear vectors
+      //vhitpad.clear();
        
-     }// hit loop
+    }// hit loop
      
-     EventCounter++;
-   } //------------------------------------------------------------ end event loop
+
+    for(int i = 0; i<nPlanes; i++){
+      for(int j = 0; j<nRings; j++){
+	for(int k = 0; k<nPads; k++){
+	  if(POIEnergyDeposit[i][j][k]>0){
+	    TxtFileOut << "\t" << right << TotalTime_poihit[i][j][k] << "\t"
+		       << right << 2212 << "\t"
+		       << right << POIEnergyDeposit[i][j][k]/TotalEnergyDeposit[i][j][k] << "\t"
+	      // << right << energydepositedbyhit  << "\t"
+		       << right << totalenergydeposit[i][j][k]  << "\t"
+		       << right << x_poihit[i][j][k] << "\t"
+		       << right << y_poihit[i][j][k] << "\t"
+		       << right << z_poihit[i][j][k] << "\t"
+		       << right << i << "\t"
+		       << right << j << "\t"
+		       << right << k << "\t"
+		       << right << ZtoGEM_poihit[i][j][k]/100.0 << "\t"
+		       << endl; // convert z to gem in m
+	  }else if(TotalEnergyDeposit[i][j][k]>0){
+	    TxtFileOut << "\t" << right << TotalTime_hiedephit[i][j][k] << "\t"
+		       << right << PID_hiedephit[i][j][k] << "\t"
+		       << right << POIEnergyDeposit[i][j][k]/TotalEnergyDeposit[i][j][k] << "\t"
+	      // << right << energydepositedbyhit  << "\t"
+		       << right << totalenergydeposit[i][j][k]  << "\t"
+		       << right << x_hiedephit[i][j][k] << "\t"
+		       << right << y_hiedephit[i][j][k] << "\t"
+		       << right << z_hiedephit[i][j][k] << "\t"
+		       << right << i << "\t"
+		       << right << j << "\t"
+		       << right << k << "\t"
+		       << right << ZtoGEM_hiedephit[i][j][k]/100.0 << "\t"
+		       << endl; // convert z to gem in m
+	  }
+	}
+      }
+    }
+    
+    EventCounter++;
+  } //------------------------------------------------------------ end event loop
  
- cout << endl;
+  cout << endl;
  
- //============================================================================
- 
- 
- // CLOSE FILES
- TxtFileOut.close();
+  //============================================================================
  
  
-    } //------------------------------------------------------------ end main function
+  // CLOSE FILES
+  TxtFileOut.close();
+ 
+  
+} //------------------------------------------------------------ end main function
   
   vector<Double_t> CalcCharge(Double_t Edep, Double_t PathLength){
     // helium values from pdg table 33.5
