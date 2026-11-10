@@ -18,7 +18,8 @@
 #include <TLorentzVector.h>
 // #include <TIter.h>
 
-#include "g4sbs_tree_acqu.C"
+//#include "g4sbs_tree_acqu.C"
+#include "g4sbs_tree_acqu_light.C"
 
 // #include "GetPadLoaded.cpp"
 #include "GetPadLoadedQuick.cpp"
@@ -44,7 +45,8 @@ const Int_t Nevents = 10000;
 //==============================================================================
 // START MAIN FUNCTION
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
-void DigiSimpleFarm(Int_t EvStart){
+//void DigiSimpleFarm(Int_t EvStart){
+void DigiSimpleFarm(const char* filelist, Int_t EvStart){
 
   //============================================================================
   // CHECK START EVENT
@@ -74,6 +76,88 @@ void DigiSimpleFarm(Int_t EvStart){
   //Double_t ADCSamples[10][21][122][];
   Int_t n_memset_int = nPads_mTPC*size_of(Int_t);
   Int_t n_memset_double = nPads_mTPC*size_of(Double_t);
+
+  //Read the file list:
+  ifstream configfile(filelist);
+  TChain *C_poi = new TChain("T");
+  TChain *C_pqe = new TChain("T");
+  TChain *C_pip = new TChain("T");
+  TChain *C_pim = new TChain("T");
+  TFile* f_beam;
+  Int_t nprotons_avg;
+  Int_t npiplus_avg;
+  Int_t npiminus_avg;
+  
+  TString currentline;
+
+  // end_tdis_files
+  // end_elastic_files
+  // end_piplus_files
+  // end_piminus_files
+  // end_beambkgd_files
+  // end_config_file
+  
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_tdis_files") ){
+    if( !currentline.BeginsWith("#") ){
+      C_poi->Add(currentline);
+    }
+  }
+
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_elastic_files") ){
+    if( !currentline.BeginsWith("#") ){
+      C_pqe->Add(currentline);
+    }
+  }
+
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_piplus_files") ){
+    if( !currentline.BeginsWith("#") ){
+      C_pip->Add(currentline);
+    }
+  }
+
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_piminus_files") ){
+    if( !currentline.BeginsWith("#") ){
+      C_pim->Add(currentline);
+    }
+  }
+
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_beambkgd_files") ){
+    if( !currentline.BeginsWith("#") ){
+      f_beam = TFile::Open(currentline.Data());
+    }
+  }
+  
+  while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_config_files") ){
+    if( !currentline.BeginsWith("#") ){
+      ObjArray *tokens = currentline.Tokenize(" ");
+
+      int ntokens = tokens->GetEntries();
+      
+      if( ntokens >= 2 ){
+	TString skey = ( (TObjString*) (*tokens)[0] )->GetString();
+	
+	if( skey == "nprotons_pertdisevent" ){
+	  TString stemp = ( (TObjString*) (*tokens)[1] )->GetString();
+	  nprotons_avg = stemp.Atoi();
+	}
+	
+	if( skey == "npiplus_pertdisevent" ){
+	  TString stemp = ( (TObjString*) (*tokens)[1] )->GetString();
+	  npiplus_avg = stemp.Atoi();
+	}
+	
+	if( skey == "npiminus_pertdisevent" ){
+	  TString stemp = ( (TObjString*) (*tokens)[1] )->GetString();
+	  npiplus_avg = stemp.Atoi();
+	}
+	
+	
+      }
+    }
+  }
+  
+  
+  
   
   //============================================================================
   // FLAGS AND VARIABLES
@@ -198,7 +282,6 @@ void DigiSimpleFarm(Int_t EvStart){
   // Variables outside loop
   //------------------------------------------------------------ start event loop
   // for TDIS events, Set "ProtonOfInterest" flag to true!
-  POI_flag = true;
   for(Int_t i=0; i<Nevents; i++){
     //reinitialize arrays:
     memset(POIEnergyDeposit, n_memset_double, 0);
@@ -250,6 +333,7 @@ void DigiSimpleFarm(Int_t EvStart){
     Double_t hitr;
     // cout << "new event" << endl;
     
+    POI_flag = true;
     for(int hitinc = 0; hitinc<T->SBS_mTPC_hit_nhits; hitinc++){
       
       hitx =  (*(T->SBS_mTPC_hit_xhit))[hitinc];
@@ -291,40 +375,17 @@ void DigiSimpleFarm(Int_t EvStart){
 	y_hiedephit[planeid][ringid][padid] = hity;
 	z_hiedephit[planeid][ringid][padid] = hitz;
       }
-      
-      //energydepositedbyhit[] = (*(T->SBS_mTPC_hit_edep))[hitinc];
-      
-      //below will have to disappear
-      // if( (*(T->SBS_mTPC_hit_pid))[hitinc]!=2212 || 
-      // 	   (*(T->SBS_mTPC_hit_mid))[hitinc]!=0)continue;
-      
-      //energydepositedbyhit = (*(T->SBS_mTPC_hit_edep))[hitinc];
-      //totalenergydeposit+= (*(T->SBS_mTPC_hit_edep))[hitinc];
-      //
-      
-      //PID = (*(T->SBS_mTPC_hit_pid))[hitinc];
-              
-      // hitx =  (*(T->SBS_mTPC_hit_xhitg))[hitinc];
-      // hity =  (*(T->SBS_mTPC_hit_yhitg))[hitinc];
-      // hitz =  (*(T->SBS_mTPC_hit_zhitg))[hitinc];
-      // hitr = TMath::Sqrt(hitx*hitx + hity*hity);
-      // if(hitr<0.05)
-      // cout << "hitr " << hitr << endl;
-       
-       
+    }// tdis  hit loop
 
-      // TxtFileOut << "\t" << right << TotalTime << "\t"
-      // 	  << right << energydepositedbyhit  << "\t"
-      // 	  << right << vhitpad[1] << "\t"
-      // 	  << right << vhitpad[2] << "\t"
-      // 	  << right << vhitpad[3] << "\t"
-      // 	  << right << ztogem/100.0 << "\t"
-      // 	  << endl; // convert z to gem in m
-      // clear vectors
-      //vhitpad.clear();
-       
-    }// hit loop
-     
+    POI_flag = false;
+    Int_t nprotons_gen = RandomVar.Poisson(nprotons_avg);
+
+    
+    Int_t npiplus_gen = RandomVar.Poisson(npiplus_avg);
+    Int_t npiminus_gen = RandomVar.Poisson(npiminus_avg);
+
+    
+    
 
     for(int i = 0; i<nPlanes; i++){
       for(int j = 0; j<nRings; j++){

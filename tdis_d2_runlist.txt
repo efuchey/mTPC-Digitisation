@@ -157,3 +157,10 @@ end_piminus_files
 /work/halla/tdis/efuchey/mTPC-Digitisation/analysis_beambkgd/tdis_d2_beambkgd.root
 
 end_beambkgd_files
+
+## number of protons/pi+/pi-
+nprotons_pertdisevent 480
+npiplus_pertdisevent 72
+piminus_pertdisevent 60
+
+end_config_file
