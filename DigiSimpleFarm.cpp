@@ -39,14 +39,14 @@ Double_t ZtoGEM(Double_t zpos);
 // GLOBAL VARIABLES
 const Int_t GEMGain = 1000;//700;//1000; //is typical gem gain 1k?
 // const Int_t Nevents = 50000;
-const Int_t Nevents = 10000;
+//const Int_t Nevents = 10000;
 
 
 //==============================================================================
 // START MAIN FUNCTION
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
 //void DigiSimpleFarm(Int_t EvStart){
-void DigiSimpleFarm(const char* filelist, Int_t EvStart){
+void DigiSimpleFarm(const char* filelist, const TString* outpath = "", const Int_t Nevents = 10000, const Int_t EvStart = 0){
 
   //============================================================================
   // CHECK START EVENT
@@ -87,16 +87,13 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
   Int_t nprotons_avg;
   Int_t npiplus_avg;
   Int_t npiminus_avg;
+  TH1D* h1_mTPChits_E_electrons;
+  TH1D* h1_mTPChits_Z_electrons;
+  TH1D* h1_mTPChits_R_electrons[500];
+
   
   TString currentline;
 
-  // end_tdis_files
-  // end_elastic_files
-  // end_piplus_files
-  // end_piminus_files
-  // end_beambkgd_files
-  // end_config_file
-  
   while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_tdis_files") ){
     if( !currentline.BeginsWith("#") ){
       C_poi->Add(currentline);
@@ -124,6 +121,16 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
   while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_beambkgd_files") ){
     if( !currentline.BeginsWith("#") ){
       f_beam = TFile::Open(currentline.Data());
+      TH2D* h2D_mTPChits_EvR_electrons = (TH1D*)f_beam->Get("h2D_mTPChits_EvR_electrons");
+      TH2D* h2D_mTPChits_RvZ_electrons = (TH1D*)f_beam->Get("h2D_mTPChits_RvZ_electrons");
+      h1_mTPChits_E_electrons = h2D_mTPChits_EvR_electrons->ProjectionY("h1_mTPChits_E_electrons", 2, 199);
+      h1_mTPChits_Z_electrons = h2D_mTPChits_RvZ_electrons->ProjectionX("h1_mTPChits_Z_electrons", 2, 199);
+      //Choose R projection as function of Z;
+      for(int m = 0; m<500; m++){
+	h1_mTPChits_R_electrons[m] = h2D_mTPChits_RvZ_electrons->ProjectionX(Form("h1_mTPChits_R_electrons_%d", m), m, m);
+	h1_mTPChits_R_electrons[m]->SetBinContent(1, h2D_mTPChits_EvR_electrons->Integral(1, 1, 140, -1)/h2D_mTPChits_EvR_electrons->Integral(1, 1, 0, -1));
+	h1_mTPChits_R_electrons[m]->SetBinContent(200, h2D_mTPChits_EvR_electrons->Integral(200, 200, 140, -1)/h2D_mTPChits_EvR_electrons->Integral(200, 200, 0, -1));
+      }
     }
   }
   
@@ -151,12 +158,9 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
 	  npiplus_avg = stemp.Atoi();
 	}
 	
-	
       }
     }
   }
-  
-  
   
   
   //============================================================================
@@ -225,31 +229,15 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
     bin = (TH2PolyBin*) obj;
     vbinareas.push_back(bin->GetArea());
   }
-
-
-  //  READ IN SIM FILE
-  TChain *C = new TChain("T");
-  TString simfile = "/scratch/rachel/tdis/";
-  simfile += EvStart;
-  simfile += "/g4sbsout_EPCEvents_";
-  simfile += EvStart;
-  simfile += ".root";
-
-  // TString simfile = infile;
-  // // // simfile += EvStart;
-  // simfile += ".root";
-
-  // TString simfile = "/w/work0/home/rachel/TDIS/EPC/Aug24/g4sbsout/1p5T/g4sbsout_EPCEvents_";
-  // simfile += EvStart;
-  // simfile += ".root";
-
-  C->Add(simfile);
   
-  // ASSIGN TREE
+  // ASSIGN TREES
   // g4sbs_tdis_tree *T = new g4sbs_tdis_tree(C);
-  g4sbs_tree_acqu *T = new g4sbs_tree_acqu(C);
+  g4sbs_tree_acqu_light *T_poi = new g4sbs_tree_acqu_light(C_poi);
+  g4sbs_tree_acqu_light *T_pqe = new g4sbs_tree_acqu_light(C_pqe);
+  g4sbs_tree_acqu_light *T_pip = new g4sbs_tree_acqu_light(C_pip);
+  g4sbs_tree_acqu_light *T_pim = new g4sbs_tree_acqu_light(C_pim);
 
-  Int_t NEventsChain = C->GetEntries();
+  Int_t NEventsChain = C_poi->GetEntries();
   cout << "N events in chain is " << NEventsChain << endl << endl;
   
   // Text file for hit outputs
@@ -263,8 +251,8 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
   // txtfile += EvStart;
   // txtfile += ".txt";
 
-  TString txtfile = "/scratch/rachel/tdis/";
-  txtfile += EvStart;
+  TString txtfile = outpath;
+  //txtfile += EvStart;
   txtfile += "/g4sbsout_EPCEvents_";
   txtfile += EvStart;
   txtfile += ".txt";
@@ -276,13 +264,19 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
   int planeid, ringid, padid;
 
   Bool_t POI_flag = false;
+  
+  Int_t PID;
+  Double_t hitx, hity, hitz;
+  Double_t HitTime, drifttime, TotalTime, ztogem;
+  Int_t nprotons_gen, npiplus_gen, npiminus_gen, npiplus_gen, nbeambkgdhits_gen;
+  Double_t acctime0, hitr, hitphi;
   //============================================================================
   // EVENT LOOP
   
   // Variables outside loop
   //------------------------------------------------------------ start event loop
   // for TDIS events, Set "ProtonOfInterest" flag to true!
-  for(Int_t i=0; i<Nevents; i++){
+  for(Int_t ev_poi=0; ev_poi<Nevents; ev_poi++){
     //reinitialize arrays:
     memset(POIEnergyDeposit, n_memset_double, 0);
     memset(TotalEnergyDeposit, n_memset_double, 0);
@@ -304,41 +298,32 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
     // for(Int_t i=0; i<1; i++){     
     // cout << endl;
     // cout << "On event " << i << " / " << NEventsChain << endl;
-    T->GetEntry(i);
+    T_poi->GetEntry(EvStart+ev_poi);
     if (EventCounter % 1000 == 0) cout << EventCounter << "/" << NEventsChain << endl;
     
-    Int_t evid = EvStart+i;
+    //Int_t evid = EvStart+;
     TxtFileOut << "Event " << right << evid << "\n";
     // TxtFileOut << "Event " << right << i << "\n";
      
     // for acqu
-    TVector3 vprimary(T->AcquMCPrimaries_Px, T->AcquMCPrimaries_Py, T->AcquMCPrimaries_Pz);
+    TVector3 vprimary(T_poi->AcquMCPrimaries_Px, T_poi->AcquMCPrimaries_Py, T_poi->AcquMCPrimaries_Pz);
     Double_t thetaprimary = vprimary.Theta()*TMath::RadToDeg();
     Double_t phiprimary = vprimary.Phi()*TMath::RadToDeg();
-    TxtFileOut << "\t" << right << T->AcquMCPrimaries_Pt
+    TxtFileOut << "\t" << right << T_poi->AcquMCPrimaries_Pt
 	       << "\t" << right << thetaprimary
 	       << "\t" << right << phiprimary
-	       << "\t" << right << T->AcquMCPrimaries_Vz
+	       << "\t" << right << T_poi->AcquMCPrimaries_Vz
 	       << "\n";
      
     // mTPC hits
-    Int_t mTPC_nHitsPerEvent = T->SBS_mTPC_hit_nhits;
-    Int_t PID;
-    Double_t primary_fraction;
-    Double_t totalenergydeposit;
-    Double_t energydepositedbyhit;
-    Double_t hitx;
-    Double_t hity;
-    Double_t hitz;
-    Double_t hitr;
     // cout << "new event" << endl;
     
     POI_flag = true;
-    for(int hitinc = 0; hitinc<T->SBS_mTPC_hit_nhits; hitinc++){
+    for(int hitinc = 0; hitinc<T_poi->SBS_mTPC_hit_nhits; hitinc++){
       
-      hitx =  (*(T->SBS_mTPC_hit_xhit))[hitinc];
-      hity =  (*(T->SBS_mTPC_hit_yhit))[hitinc];
-      hitz =  (*(T->SBS_mTPC_hit_zhit))[hitinc];
+      hitx =  (*(T_poi->SBS_mTPC_hit_xhitg))[hitinc];
+      hity =  (*(T_poi->SBS_mTPC_hit_yhitg))[hitinc];
+      hitz =  (*(T_poi->SBS_mTPC_hit_zhitg))[hitinc];
       
       GetPadLoadedSuperQuick(hitx*1000.0,
 			     hity*1000.0,
@@ -347,17 +332,17 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
 			     ringid,
 			     padid);
       
-      Double_t HitTime = (*(T->SBS_mTPC_hit_tavg))[hitinc];
+      HitTime = (*(T_poi->SBS_mTPC_hit_tavg))[hitinc];
       // ztogem must be in cm since diff coeffs in cm
-      Double_t ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+      ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
       ztogem = ztogem/10.0; // convert to cm
-      Double_t driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-      Double_t TotalTime = HitTime+driftime;
+      driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+      TotalTime = HitTime+driftime;
 
       
-      TotalEnergyDeposit[planeid][ringid][padid]+= (*(T->SBS_mTPC_hit_edep))[hitinc];
-      if( (*(T->SBS_mTPC_hit_pid))[hitinc]==2212 && POI_flag){
-	POI_fraction[planeid][ringid][padid]+= (*(T->SBS_mTPC_hit_edep))[hitinc];
+      TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
+      if( (*(T_poi->SBS_mTPC_hit_pid))[hitinc]==2212 && POI_flag){
+	POI_fraction[planeid][ringid][padid]+= (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
 	//PID_poihit[planeid][ringid][padid] = 2212;
 	TotalTime_poihit[planeid][ringid][padid] = TotalTime;
 	ZtoGEM_poihit[planeid][ringid][padid] = ztogem;
@@ -366,9 +351,9 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
 	z_poihit[planeid][ringid][padid] = hitz;
       }
 
-      if((*(T->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
-	hiedephit[planeid][ringid][padid] = (*(T->SBS_mTPC_hit_edep))[hitinc];
-	PID_hiedephit[planeid][ringid][padid] = (*(T->SBS_mTPC_hit_pid))[hitinc];
+      if((*(T_poi->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
+	hiedephit[planeid][ringid][padid] = (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
+	PID_hiedephit[planeid][ringid][padid] = (*(T_poi->SBS_mTPC_hit_pid))[hitinc];
 	TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
 	ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
 	x_hiedephit[planeid][ringid][padid] = hitx;
@@ -378,14 +363,152 @@ void DigiSimpleFarm(const char* filelist, Int_t EvStart){
     }// tdis  hit loop
 
     POI_flag = false;
-    Int_t nprotons_gen = RandomVar.Poisson(nprotons_avg);
+    nprotons_gen = RandomVar.Poisson(nprotons_avg);
+    for(Int_t ev_pqe=0; ev_pqe<nprotons_gen, ev_pqe++){
+      acctime0 = RandomVar.Uniform(-1000., 1000.);
+      for(int hitinc = 0; hitinc<T_pqe->SBS_mTPC_hit_nhits; hitinc++){
+      
+	hitx =  (*(T_pqe->SBS_mTPC_hit_xhitg))[hitinc];
+	hity =  (*(T_pqe->SBS_mTPC_hit_yhitg))[hitinc];
+	hitz =  (*(T_pqe->SBS_mTPC_hit_zhitg))[hitinc];
+      
+	GetPadLoadedSuperQuick(hitx*1000.0,
+			       hity*1000.0,
+			       hitz*1000.0,
+			       planeid,
+			       ringid,
+			       padid);
+	
+	HitTime = (*(T_pqe->SBS_mTPC_hit_tavg))[hitinc];
+	// ztogem must be in cm since diff coeffs in cm
+	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+	ztogem = ztogem/10.0; // convert to cm
+	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+driftime;
 
+      
+	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pqe->SBS_mTPC_hit_edep))[hitinc];
+	if((*(T_pqe->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
+	  hiedephit[planeid][ringid][padid] = (*(T_pqe->SBS_mTPC_hit_edep))[hitinc];
+	  PID_hiedephit[planeid][ringid][padid] = (*(T_pqe->SBS_mTPC_hit_pid))[hitinc];
+	  TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
+	  ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
+	  x_hiedephit[planeid][ringid][padid] = hitx;
+	  y_hiedephit[planeid][ringid][padid] = hity;
+	  z_hiedephit[planeid][ringid][padid] = hitz;
+	}
+      }// elastic protons hit loop
+    }
     
-    Int_t npiplus_gen = RandomVar.Poisson(npiplus_avg);
-    Int_t npiminus_gen = RandomVar.Poisson(npiminus_avg);
+    npiplus_gen = RandomVar.Poisson(npiplus_avg);
+    for(Int_t ev_pip=0; ev_pip<npiplus_gen, ev_pip++){
+      acctime0 = RandomVar.Uniform(-1000., 1000.);
+      for(int hitinc = 0; hitinc<T_pip->SBS_mTPC_hit_nhits; hitinc++){
+      
+	hitx =  (*(T_pip->SBS_mTPC_hit_xhitg))[hitinc];
+	hity =  (*(T_pip->SBS_mTPC_hit_yhitg))[hitinc];
+	hitz =  (*(T_pip->SBS_mTPC_hit_zhitg))[hitinc];
+      
+	GetPadLoadedSuperQuick(hitx*1000.0,
+			       hity*1000.0,
+			       hitz*1000.0,
+			       planeid,
+			       ringid,
+			       padid);
+      
+	HitTime = (*(T_pip->SBS_mTPC_hit_tavg))[hitinc];
+	// ztogem must be in cm since diff coeffs in cm
+	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+	ztogem = ztogem/10.0; // convert to cm
+	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+driftime
 
+      
+	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pip->SBS_mTPC_hit_edep))[hitinc];
+	if((*(T_pip->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
+	  hiedephit[planeid][ringid][padid] = (*(T_pip->SBS_mTPC_hit_edep))[hitinc];
+	  PID_hiedephit[planeid][ringid][padid] = (*(T_pip->SBS_mTPC_hit_pid))[hitinc];
+	  TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
+	  ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
+	  x_hiedephit[planeid][ringid][padid] = hitx;
+	  y_hiedephit[planeid][ringid][padid] = hity;
+	  z_hiedephit[planeid][ringid][padid] = hitz;
+	}
+      }// pi+ hit loop
+    }
+    
+    npiminus_gen = RandomVar.Poisson(npiminus_avg);
+    for(Int_t ev_pim=0; ev_pim<npiminus_gen, ev_pim++){
+      acctime0 = RandomVar.Uniform(-1000., 1000.);
+      for(int hitinc = 0; hitinc<T_pim->SBS_mTPC_hit_nhits; hitinc++){
+      
+	hitx =  (*(T_pim->SBS_mTPC_hit_xhitg))[hitinc];
+	hity =  (*(T_pim->SBS_mTPC_hit_yhitg))[hitinc];
+	hitz =  (*(T_pim->SBS_mTPC_hit_zhitg))[hitinc];
+      
+	GetPadLoadedSuperQuick(hitx*1000.0,
+			       hity*1000.0,
+			       hitz*1000.0,
+			       planeid,
+			       ringid,
+			       padid);
+      
+	HitTime = (*(T_pim->SBS_mTPC_hit_tavg))[hitinc];
+	// ztogem must be in cm since diff coeffs in cm
+	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+	ztogem = ztogem/10.0; // convert to cm
+	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+driftime;
+
+      
+	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pim->SBS_mTPC_hit_edep))[hitinc];
+	if((*(T_pim->SBS_mTPC_hit_edep))[hitinc]>hiedephit[planeid][ringid][padid]){
+	  hiedephit[planeid][ringid][padid] = (*(T_pim->SBS_mTPC_hit_edep))[hitinc];
+	  PID_hiedephit[planeid][ringid][padid] = (*(T_pim->SBS_mTPC_hit_pid))[hitinc];
+	  TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
+	  ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
+	  x_hiedephit[planeid][ringid][padid] = hitx;
+	  y_hiedephit[planeid][ringid][padid] = hity;
+	  z_hiedephit[planeid][ringid][padid] = hitz;
+	}
+      }// pi- hit loop
+    }
     
     
+    nbeambkgdhits_gen = RandomVar.Poisson(h1_mTPChits_Z_electrons->Integral());
+    for(Int_t ev_beam=0; ev_beam<nbeambkgd_gen, ev_beam++){
+      acctime0 = RandomVar.Uniform(-1000.0, 1000.0);
+      edep = h1_mTPChits_E_electrons->GetRandom();
+      hitz = h1_mTPChits_Z_electrons->GetRandom();
+      binz = h2D_mTPChits_RvZ_electrons->GetXaxis()->FindBin(hitz);
+      //h1_mTPChits_R_electrons = h2D_mTPChits_RvZ_electrons->ProjectionY("h1_mTPChits_R_electrons",2, 200);
+      hitr = h1_mTPChits_R_electrons_[binz]->GetRandom();
+      hitphi = RandomVar.Uniform(0.0, 6.283185307);//0->twopi
+      hitx = hitr*cos(hitphi);
+      hity = hitr*sin(hitphi);
+      
+      GetPadLoadedSuperQuick(hitx*1000.0,
+			     hity*1000.0,
+			     hitz*1000.0,
+			     planeid,
+			     ringid,
+			     padid);
+      
+      ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
+      ztogem = ztogem/10.0; // convert to cm
+      driftime = (ztogem*10000.0)/DriftVelocity;
+      TotalTime = acctime0+driftime;
+      TotalEnergyDeposit[planeid][ringid][padid]+= edep;
+      if(edep>hiedephit[planeid][ringid][padid]){
+	hiedephit[planeid][ringid][padid] = edep;
+	PID_hiedephit[planeid][ringid][padid] = 11;
+	TotalTime_hiedephit[planeid][ringid][padid] = TotalTime;
+	ZtoGEM_hiedephit[planeid][ringid][padid] = ztogem;
+	x_hiedephit[planeid][ringid][padid] = hitx;
+	y_hiedephit[planeid][ringid][padid] = hity;
+	z_hiedephit[planeid][ringid][padid] = hitz;
+      }
+    }
 
     for(int i = 0; i<nPlanes; i++){
       for(int j = 0; j<nRings; j++){
