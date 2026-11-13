@@ -25,6 +25,83 @@ public :
 // Fixed size dimensions of array or collections stored in the TTree if any.
 
    // Declaration of leaf types
+   Double_t        ev_count;
+   Double_t        ev_rate;
+   Double_t        ev_solang;
+   Double_t        ev_sigma;
+   Double_t        ev_W2;
+   Double_t        ev_xbj;
+   Double_t        ev_Q2;
+   Double_t        ev_th;
+   Double_t        ev_ph;
+   Double_t        ev_Aperp;
+   Double_t        ev_Apar;
+   Double_t        ev_Pt;
+   Double_t        ev_Pl;
+   Double_t        ev_vx;
+   Double_t        ev_vy;
+   Double_t        ev_vz;
+   Double_t        ev_ep;
+   Double_t        ev_np;
+   Double_t        ev_epx;
+   Double_t        ev_epy;
+   Double_t        ev_epz;
+   Double_t        ev_npx;
+   Double_t        ev_npy;
+   Double_t        ev_npz;
+   Double_t        ev_nth;
+   Double_t        ev_nph;
+   Double_t        ev_pmperp;
+   Double_t        ev_pmpar;
+   Double_t        ev_pmparsm;
+   Double_t        ev_z;
+   Double_t        ev_phperp;
+   Double_t        ev_phih;
+   Double_t        ev_phiS;
+   Double_t        ev_thetaS;
+   Double_t        ev_MX2;
+   Double_t        ev_Sx;
+   Double_t        ev_Sy;
+   Double_t        ev_Sz;
+   Double_t        ev_s;
+   Double_t        ev_t;
+   Double_t        ev_u;
+   Double_t        ev_costhetaCM;
+   Double_t        ev_Egamma;
+   Int_t           ev_nucl;
+   Int_t           ev_fnucl;
+   Int_t           ev_hadr;
+   Int_t           ev_earmaccept;
+   Int_t           ev_harmaccept;
+   Double_t        ev_tdis_KE;
+   Double_t        ev_tdis_sigmaELA;
+   Double_t        ev_tdis_sigmaQE;
+   Double_t        ev_tdis_sigmaSIDIS;
+   Double_t        ev_tdis_sigmaDIS;
+   Double_t        ev_tdis_sigmaTDIS;
+   Double_t        ev_tdis_p1p;
+   Double_t        ev_tdis_p2p;
+   Double_t        ev_tdis_pip;
+   Double_t        ev_tdis_p1px;
+   Double_t        ev_tdis_p1py;
+   Double_t        ev_tdis_p1pz;
+   Double_t        ev_tdis_p2px;
+   Double_t        ev_tdis_p2py;
+   Double_t        ev_tdis_p2pz;
+   Double_t        ev_tdis_pipx;
+   Double_t        ev_tdis_pipy;
+   Double_t        ev_tdis_pipz;
+   Double_t        ev_tdis_p1th;
+   Double_t        ev_tdis_p1ph;
+   Double_t        ev_tdis_p2th;
+   Double_t        ev_tdis_p2ph;
+   Double_t        ev_tdis_pith;
+   Double_t        ev_tdis_piph;
+   Double_t        ev_tdis_ya;
+   Double_t        ev_tdis_y;
+   Double_t        ev_tdis_f2p;
+   Double_t        ev_tdis_f2pi;
+   Double_t        ev_tdis_ypi;
    Int_t           SBS_mTPC_hit_nhits;
    // vector<int>     *SBS_mTPC_hit_cell;
    // vector<double>  *SBS_mTPC_hit_xcell;
@@ -56,15 +133,17 @@ public :
    vector<int>     *SBS_mTPC_hit_pid;
    // Double_t        AcquMCPrimaries_Vx;
    // Double_t        AcquMCPrimaries_Vy;
-   Double_t        AcquMCPrimaries_Vz;
-   Double_t        AcquMCPrimaries_Px;
-   Double_t        AcquMCPrimaries_Py;
-   Double_t        AcquMCPrimaries_Pz;
-   Double_t        AcquMCPrimaries_Pt;
+   // Double_t        AcquMCPrimaries_Vz;
+   // Double_t        AcquMCPrimaries_Px;
+   // Double_t        AcquMCPrimaries_Py;
+   // Double_t        AcquMCPrimaries_Pz;
+   // Double_t        AcquMCPrimaries_Pt;
    // Double_t        AcquMCPrimaries_E;
    // Int_t           AcquMCPrimaries_pid;
 
    // List of branches
+   TBranch        *b_ev;   //!
+   TBranch        *b_ev_tdis;   //!
    // TBranch        *b_SBS_mTPC_det_esum;   //!
    TBranch        *b_SBS_mTPC_hit_nhits;   //!
    // TBranch        *b_SBS_mTPC_hit_cell;   //!
@@ -97,11 +176,11 @@ public :
    TBranch        *b_SBS_mTPC_hit_pid;   //!
    // TBranch        *b_AcquMCPrimaries_Vx;   //!
    // TBranch        *b_AcquMCPrimaries_Vy;   //!
-   TBranch        *b_AcquMCPrimaries_Vz;   //!
-   TBranch        *b_AcquMCPrimaries_Px;   //!
-   TBranch        *b_AcquMCPrimaries_Py;   //!
-   TBranch        *b_AcquMCPrimaries_Pz;   //!
-   TBranch        *b_AcquMCPrimaries_Pt;   //!
+   // TBranch        *b_AcquMCPrimaries_Vz;   //!
+   // TBranch        *b_AcquMCPrimaries_Px;   //!
+   // TBranch        *b_AcquMCPrimaries_Py;   //!
+   // TBranch        *b_AcquMCPrimaries_Pz;   //!
+   // TBranch        *b_AcquMCPrimaries_Pt;   //!
    // TBranch        *b_AcquMCPrimaries_E;   //!
    // TBranch        *b_AcquMCPrimaries_pid;   //!
 
@@ -205,6 +284,8 @@ void g4sbs_tree_acqu_light::Init(TTree *tree)
    fChain->SetMakeClass(1);
 
    fChain->SetBranchStatus("*", 0);
+   fChain->SetBranchStatus("ev", 1);
+   fChain->SetBranchStatus("ev_tdis", 1);
    fChain->SetBranchStatus("SBS.mTPC.hit.nhits", 1);
    fChain->SetBranchStatus("SBS.mTPC.hit.xhitg", 1);
    fChain->SetBranchStatus("SBS.mTPC.hit.yhitg", 1);
@@ -215,12 +296,14 @@ void g4sbs_tree_acqu_light::Init(TTree *tree)
    fChain->SetBranchStatus("SBS.mTPC.hit.trid", 1);
    fChain->SetBranchStatus("SBS.mTPC.hit.mid", 1);
    fChain->SetBranchStatus("SBS.mTPC.hit.pid", 1);
-   fChain->SetBranchStatus("AcquMCPrimaries.Vz", 1);
-   fChain->SetBranchStatus("AcquMCPrimaries.Px", 1);
-   fChain->SetBranchStatus("AcquMCPrimaries.Py", 1);
-   fChain->SetBranchStatus("AcquMCPrimaries.Pz", 1);
-   fChain->SetBranchStatus("AcquMCPrimaries.Pt", 1);
+   // fChain->SetBranchStatus("AcquMCPrimaries.Vz", 1);
+   // fChain->SetBranchStatus("AcquMCPrimaries.Px", 1);
+   // fChain->SetBranchStatus("AcquMCPrimaries.Py", 1);
+   // fChain->SetBranchStatus("AcquMCPrimaries.Pz", 1);
+   // fChain->SetBranchStatus("AcquMCPrimaries.Pt", 1);
 
+   fChain->SetBranchAddress("ev", &ev_count, &b_ev);
+   fChain->SetBranchAddress("ev_tdis", &ev_tdis_KE, &b_ev_tdis);
    // fChain->SetBranchAddress("SBS.mTPC.det.esum", &SBS_mTPC_det_esum, &b_SBS_mTPC_det_esum);
    fChain->SetBranchAddress("SBS.mTPC.hit.nhits", &SBS_mTPC_hit_nhits, &b_SBS_mTPC_hit_nhits);
    // fChain->SetBranchAddress("SBS.mTPC.hit.cell", &SBS_mTPC_hit_cell, &b_SBS_mTPC_hit_cell);
@@ -253,11 +336,11 @@ void g4sbs_tree_acqu_light::Init(TTree *tree)
    fChain->SetBranchAddress("SBS.mTPC.hit.pid", &SBS_mTPC_hit_pid, &b_SBS_mTPC_hit_pid);
    // fChain->SetBranchAddress("AcquMCPrimaries.Vx", &AcquMCPrimaries_Vx, &b_AcquMCPrimaries_Vx);
    // fChain->SetBranchAddress("AcquMCPrimaries.Vy", &AcquMCPrimaries_Vy, &b_AcquMCPrimaries_Vy);
-   fChain->SetBranchAddress("AcquMCPrimaries.Vz", &AcquMCPrimaries_Vz, &b_AcquMCPrimaries_Vz);
-   fChain->SetBranchAddress("AcquMCPrimaries.Px", &AcquMCPrimaries_Px, &b_AcquMCPrimaries_Px);
-   fChain->SetBranchAddress("AcquMCPrimaries.Py", &AcquMCPrimaries_Py, &b_AcquMCPrimaries_Py);
-   fChain->SetBranchAddress("AcquMCPrimaries.Pz", &AcquMCPrimaries_Pz, &b_AcquMCPrimaries_Pz);
-   fChain->SetBranchAddress("AcquMCPrimaries.Pt", &AcquMCPrimaries_Pt, &b_AcquMCPrimaries_Pt);
+   // fChain->SetBranchAddress("AcquMCPrimaries.Vz", &AcquMCPrimaries_Vz, &b_AcquMCPrimaries_Vz);
+   // fChain->SetBranchAddress("AcquMCPrimaries.Px", &AcquMCPrimaries_Px, &b_AcquMCPrimaries_Px);
+   // fChain->SetBranchAddress("AcquMCPrimaries.Py", &AcquMCPrimaries_Py, &b_AcquMCPrimaries_Py);
+   // fChain->SetBranchAddress("AcquMCPrimaries.Pz", &AcquMCPrimaries_Pz, &b_AcquMCPrimaries_Pz);
+   // fChain->SetBranchAddress("AcquMCPrimaries.Pt", &AcquMCPrimaries_Pt, &b_AcquMCPrimaries_Pt);
    // fChain->SetBranchAddress("AcquMCPrimaries.E", &AcquMCPrimaries_E, &b_AcquMCPrimaries_E);
    // fChain->SetBranchAddress("AcquMCPrimaries.pid", &AcquMCPrimaries_pid, &b_AcquMCPrimaries_pid);
    Notify();

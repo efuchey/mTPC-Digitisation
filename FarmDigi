@@ -56,7 +56,7 @@ echo "Work output directory is "$OUT_DIR_WORK
 #echo "sim file for root $SimFileRoot"
 
 cd $SIMDIR
-root -b -q 'DigiSimpleFarm.cpp('$IN_DIR_WORK'/'$INFILE', '$OUT_DIR_WORK', '$NEVENTS', '$FIRSTEV')'
+root -b -q 'DigiSimpleFarm.cpp("'$IN_DIR_WORK'/'$INFILE'", "'$OUT_DIR_WORK'", '$NEVENTS', '$FIRSTEV')'
 #root -b -q 'FarmDigiChargeShare.cpp('$RUNNUMBER')'
 
 # Tidy up

@@ -12,6 +12,7 @@
 #include <TRandom.h>
 #include <string>
 #include <TString.h>
+#include <TObjArray.h>
 #include <TCanvas.h>
 #include <vector>
 #include <algorithm>
@@ -46,7 +47,7 @@ const Int_t GEMGain = 1000;//700;//1000; //is typical gem gain 1k?
 // START MAIN FUNCTION
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
 //void DigiSimpleFarm(Int_t EvStart){
-void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Nevents = 10000, const Int_t EvStart = 0){
+void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Nevents = 10000, const Int_t EvStart = 0){
 
   //============================================================================
   // CHECK START EVENT
@@ -87,6 +88,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   Int_t nprotons_avg;
   Int_t npiplus_avg;
   Int_t npiminus_avg;
+  TH2D* h2D_mTPChits_EvR_electrons;
+  TH2D* h2D_mTPChits_RvZ_electrons;
   TH1D* h1_mTPChits_E_electrons;
   TH1D* h1_mTPChits_Z_electrons;
   TH1D* h1_mTPChits_R_electrons[500];
@@ -121,8 +124,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_beambkgd_files") ){
     if( !currentline.BeginsWith("#") ){
       f_beam = TFile::Open(currentline.Data());
-      TH2D* h2D_mTPChits_EvR_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_EvR_electrons");
-      TH2D* h2D_mTPChits_RvZ_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_RvZ_electrons");
+      h2D_mTPChits_EvR_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_EvR_electrons");
+      h2D_mTPChits_RvZ_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_RvZ_electrons");
       h1_mTPChits_E_electrons = h2D_mTPChits_EvR_electrons->ProjectionY("h1_mTPChits_E_electrons", 2, 199);
       h1_mTPChits_Z_electrons = h2D_mTPChits_RvZ_electrons->ProjectionX("h1_mTPChits_Z_electrons", 2, 199);
       //Choose R projection as function of Z;
@@ -136,7 +139,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   
   while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_config_files") ){
     if( !currentline.BeginsWith("#") ){
-      ObjArray *tokens = currentline.Tokenize(" ");
+      TObjArray *tokens = currentline.Tokenize(" ");
 
       int ntokens = tokens->GetEntries();
       
@@ -251,13 +254,14 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   // txtfile += EvStart;
   // txtfile += ".txt";
 
-  TString txtfile = outpath;
+  TString txtfile = Form("%s/mTPCdig_sumperimposed_firstevt%d_Nevts%d.txt", outpath, EvStart, Nevents);
+  //*outpath;
   //txtfile += EvStart;
-  txtfile += "/mTPCdig_sumperimposed_firstevt";
-  txtfile += EvStart;
-  txtfile += "_Nevts";
-  txtfile += Nevents;
-  txtfile += ".txt";
+  // txtfile += "/mTPCdig_sumperimposed_firstevt";
+  // txtfile += EvStart;
+  // txtfile += "_Nevts";
+  // txtfile += Nevents;
+  // txtfile += ".txt";
 
 
   ofstream TxtFileOut;
@@ -270,8 +274,9 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   Int_t PID;
   Double_t hitx, hity, hitz;
   Double_t HitTime, drifttime, TotalTime, ztogem;
-  Int_t nprotons_gen, npiplus_gen, npiminus_gen, npiplus_gen, nbeambkgdhits_gen;
-  Double_t acctime0, hitr, hitphi;
+  Int_t nprotons_gen, npiplus_gen, npiminus_gen, nbeambkgdhits_gen;
+  Double_t acctime0, edep, hitr, hitphi;
+  Int_t binz;
   //============================================================================
   // EVENT LOOP
   
@@ -280,21 +285,21 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
   // for TDIS events, Set "ProtonOfInterest" flag to true!
   for(Int_t ev_poi=0; ev_poi<Nevents; ev_poi++){
     //reinitialize arrays:
-    memset(POIEnergyDeposit, n_memset_double, 0);
-    memset(TotalEnergyDeposit, n_memset_double, 0);
-    //memset(PID_poihit, n_memset_int, 0);
-    memset(TotalTime_poihit, n_memset_double, 0);
-    memset(ZtoGEM_poihit, n_memset_double, 0);
-    memset(x_poihit, n_memset_double, 0);
-    memset(y_poihit, n_memset_double, 0);
-    memset(z_poihit, n_memset_double, 0);
-    memset(PID_hiedephit, n_memset_int, 0);
-    memset(TotalTime_hiedephit, n_memset_double, 0);
-    memset(ZtoGEM_hiedephit, n_memset_double, 0);
-    memset(x_hiedephit, n_memset_double, 0);
-    memset(y_hiedephit, n_memset_double, 0);
-    memset(z_hiedephit, n_memset_double, 0);
-    memset(hiedephit, n_memset_double, 0);
+    memset(POIEnergyDeposit, 0, n_memset_double);
+    memset(TotalEnergyDeposit, 0, n_memset_double);
+    //memset(PID_poihit, 0, n_memset_int);
+    memset(TotalTime_poihit, 0, n_memset_double);
+    memset(ZtoGEM_poihit, 0, n_memset_double);
+    memset(x_poihit, 0, n_memset_double);
+    memset(y_poihit, 0, n_memset_double);
+    memset(z_poihit, 0, n_memset_double);
+    memset(PID_hiedephit, 0, n_memset_int);
+    memset(TotalTime_hiedephit, 0, n_memset_double);
+    memset(ZtoGEM_hiedephit, 0, n_memset_double);
+    memset(x_hiedephit, 0, n_memset_double);
+    memset(y_hiedephit, 0, n_memset_double);
+    memset(z_hiedephit, 0, n_memset_double);
+    memset(hiedephit, 0, n_memset_double);
     
     // for(Int_t i=0; i<10; i++){     
     // for(Int_t i=0; i<1; i++){     
@@ -304,18 +309,25 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
     if (EventCounter % 1000 == 0) cout << EventCounter << "/" << NEventsChain << endl;
     
     //Int_t evid = EvStart+;
-    TxtFileOut << "Event " << right << evid << "\n";
+    TxtFileOut << "Event " << right << ev_poi << "\n";
     // TxtFileOut << "Event " << right << i << "\n";
      
     // for acqu
-    TVector3 vprimary(T_poi->AcquMCPrimaries_Px, T_poi->AcquMCPrimaries_Py, T_poi->AcquMCPrimaries_Pz);
-    Double_t thetaprimary = vprimary.Theta()*TMath::RadToDeg();
-    Double_t phiprimary = vprimary.Phi()*TMath::RadToDeg();
-    TxtFileOut << "\t" << right << T_poi->AcquMCPrimaries_Pt
-	       << "\t" << right << thetaprimary
-	       << "\t" << right << phiprimary
-	       << "\t" << right << T_poi->AcquMCPrimaries_Vz
+    //TVector3 vprimary(T_poi->AcquMCPrimaries_Px, T_poi->AcquMCPrimaries_Py, T_poi->AcquMCPrimaries_Pz);
+    //Double_t thetaprimary = T_poi->ev_p1th;//vprimary.Theta()*TMath::RadToDeg();
+    //Double_t phiprimary = T_poi->ev_p1ph;//vprimary.Phi()*TMath::RadToDeg();
+    TxtFileOut << "\t" << right << T_poi->ev_tdis_p2p*sin(T_poi->ev_tdis_p2th*TMath::DegToRad())
+	       << "\t" << right << T_poi->ev_tdis_p2th
+	       << "\t" << right << T_poi->ev_tdis_p2ph
+	       << "\t" << right << T_poi->ev_vz
 	       << "\n";
+    if( strstr(filelist, "d2")!=nullptr ){//d2...
+      TxtFileOut << "\t" << right << T_poi->ev_tdis_p1p*sin(T_poi->ev_tdis_p1th*TMath::DegToRad())
+		 << "\t" << right << T_poi->ev_tdis_p1th
+		 << "\t" << right << T_poi->ev_tdis_p1ph
+		 << "\t" << right << T_poi->ev_vz
+		 << "\n";
+    }
      
     // mTPC hits
     // cout << "new event" << endl;
@@ -338,13 +350,13 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
       // ztogem must be in cm since diff coeffs in cm
       ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
       ztogem = ztogem/10.0; // convert to cm
-      driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-      TotalTime = HitTime+driftime;
+      drifttime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+      TotalTime = HitTime+drifttime;
 
       
       TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
       if( (*(T_poi->SBS_mTPC_hit_pid))[hitinc]==2212 && POI_flag){
-	POI_fraction[planeid][ringid][padid]+= (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
+	POIEnergyDeposit[planeid][ringid][padid]+= (*(T_poi->SBS_mTPC_hit_edep))[hitinc];
 	//PID_poihit[planeid][ringid][padid] = 2212;
 	TotalTime_poihit[planeid][ringid][padid] = TotalTime;
 	ZtoGEM_poihit[planeid][ringid][padid] = ztogem;
@@ -366,7 +378,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 
     POI_flag = false;
     nprotons_gen = RandomVar.Poisson(nprotons_avg);
-    for(Int_t ev_pqe=0; ev_pqe<nprotons_gen, ev_pqe++){
+    for(Int_t ev_pqe=0; ev_pqe<nprotons_gen; ev_pqe++){
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pqe->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -385,8 +397,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 	// ztogem must be in cm since diff coeffs in cm
 	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
 	ztogem = ztogem/10.0; // convert to cm
-	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-	TotalTime = acctime0+HitTime+driftime;
+	drifttime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+drifttime;
 
       
 	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pqe->SBS_mTPC_hit_edep))[hitinc];
@@ -403,7 +415,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
     }
     
     npiplus_gen = RandomVar.Poisson(npiplus_avg);
-    for(Int_t ev_pip=0; ev_pip<npiplus_gen, ev_pip++){
+    for(Int_t ev_pip=0; ev_pip<npiplus_gen; ev_pip++){
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pip->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -422,8 +434,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 	// ztogem must be in cm since diff coeffs in cm
 	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
 	ztogem = ztogem/10.0; // convert to cm
-	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-	TotalTime = acctime0+HitTime+driftime
+	drifttime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+drifttime;
 
       
 	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pip->SBS_mTPC_hit_edep))[hitinc];
@@ -440,7 +452,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
     }
     
     npiminus_gen = RandomVar.Poisson(npiminus_avg);
-    for(Int_t ev_pim=0; ev_pim<npiminus_gen, ev_pim++){
+    for(Int_t ev_pim=0; ev_pim<npiminus_gen; ev_pim++){
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pim->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -459,8 +471,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 	// ztogem must be in cm since diff coeffs in cm
 	ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
 	ztogem = ztogem/10.0; // convert to cm
-	driftime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
-	TotalTime = acctime0+HitTime+driftime;
+	drifttime = (ztogem*10000.0)/DriftVelocity;// convert z to gem from cm to um, result will be ns
+	TotalTime = acctime0+HitTime+drifttime;
 
       
 	TotalEnergyDeposit[planeid][ringid][padid]+= (*(T_pim->SBS_mTPC_hit_edep))[hitinc];
@@ -478,13 +490,13 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
     
     
     nbeambkgdhits_gen = RandomVar.Poisson(h1_mTPChits_Z_electrons->Integral());
-    for(Int_t ev_beam=0; ev_beam<nbeambkgd_gen, ev_beam++){
+    for(Int_t ev_beam=0; ev_beam<nbeambkgdhits_gen; ev_beam++){
       acctime0 = RandomVar.Uniform(-1000.0, 1000.0);
       edep = h1_mTPChits_E_electrons->GetRandom();
       hitz = h1_mTPChits_Z_electrons->GetRandom();
       binz = h2D_mTPChits_RvZ_electrons->GetXaxis()->FindBin(hitz);
       //h1_mTPChits_R_electrons = h2D_mTPChits_RvZ_electrons->ProjectionY("h1_mTPChits_R_electrons",2, 200);
-      hitr = h1_mTPChits_R_electrons_[binz]->GetRandom();
+      hitr = h1_mTPChits_R_electrons[binz]->GetRandom();
       hitphi = RandomVar.Uniform(0.0, 6.283185307);//0->twopi
       hitx = hitr*cos(hitphi);
       hity = hitr*sin(hitphi);
@@ -498,8 +510,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
       
       ztogem =  ZtoGEM(hitz*1000.0); // convert argument, from g4, to mm for fncn, return is mm
       ztogem = ztogem/10.0; // convert to cm
-      driftime = (ztogem*10000.0)/DriftVelocity;
-      TotalTime = acctime0+driftime;
+      drifttime = (ztogem*10000.0)/DriftVelocity;
+      TotalTime = acctime0+drifttime;
       TotalEnergyDeposit[planeid][ringid][padid]+= edep;
       if(edep>hiedephit[planeid][ringid][padid]){
 	hiedephit[planeid][ringid][padid] = edep;
@@ -520,7 +532,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 		       << right << 2212 << "\t"
 		       << right << POIEnergyDeposit[i][j][k]/TotalEnergyDeposit[i][j][k] << "\t"
 	      // << right << energydepositedbyhit  << "\t"
-		       << right << totalenergydeposit[i][j][k]  << "\t"
+		       << right << TotalEnergyDeposit[i][j][k]  << "\t"
 		       << right << x_poihit[i][j][k] << "\t"
 		       << right << y_poihit[i][j][k] << "\t"
 		       << right << z_poihit[i][j][k] << "\t"
@@ -534,7 +546,7 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Ne
 		       << right << PID_hiedephit[i][j][k] << "\t"
 		       << right << POIEnergyDeposit[i][j][k]/TotalEnergyDeposit[i][j][k] << "\t"
 	      // << right << energydepositedbyhit  << "\t"
-		       << right << totalenergydeposit[i][j][k]  << "\t"
+		       << right << TotalEnergyDeposit[i][j][k]  << "\t"
 		       << right << x_hiedephit[i][j][k] << "\t"
 		       << right << y_hiedephit[i][j][k] << "\t"
 		       << right << z_hiedephit[i][j][k] << "\t"
