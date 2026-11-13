@@ -253,8 +253,10 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath = "", const Int
 
   TString txtfile = outpath;
   //txtfile += EvStart;
-  txtfile += "/g4sbsout_EPCEvents_";
+  txtfile += "/mTPCdig_sumperimposed_firstevt";
   txtfile += EvStart;
+  txtfile += "_Nevts";
+  txtfile += Nevents;
   txtfile += ".txt";
 
 

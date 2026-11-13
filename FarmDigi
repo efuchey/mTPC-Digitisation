@@ -1,50 +1,71 @@
-#!/bin/tcsh
+#!/bin/bash
 #PBS -N FarmDigi
 #PBS -m n
 #PBS -M Rachel.Montgomery@glasgow.ac.uk
 #PBS -V
 #PBS -l walltime=400:00:00
 
-echo  "Passed run # $RUNNUMBER to FarmDigi"
 
-cd ${BATCH_DIR}
+NEVENTS=1000
+FIRSTEV=0
+
+if [[ "$#" -lt 1 ]]; then
+    echo -e "\n--!--\n provide at least input file!!!"
+    echo -e " You may also provide number of events and first event\n"
+    exit;
+fi
+
+INFILE=$1
+
+if [[ "$#" -gt 2 ]]; then
+    NEVENTS=$2
+fi
+
+if [[ "$#" -gt 2 ]]; then
+    FIRSTEV=$3
+fi
+
+echo  "reading "$INFILE" to FarmDigi"
+echo  "processing "$NEVENTS" events, starting with event "$FIRSTEV
+
+#cd ${BATCH_DIR}
 
 # set executable directory
-set SimDir = "/home/rachel/geant4/TDIS_digi/CheckChargeShare/mTPC-DigiChargeShare"
+export SIMDIR=/work/halla/tdis/efuchey/mTPC-Digitisation
 
-# Set up the directories on work
-setenv IN_DIR_WORK /w/work0/home/rachel/TDIS/EPC/Feb26-2p8T/g4sbsout
-setenv OUT_DIR_WORK /w/work0/home/rachel/TDIS/EPC/Feb26-2p8T/DigiOut/NoXYZ
+# Set up the directories:
+# directory in which input config file is located
+export IN_DIR_WORK=/work/halla/tdis/efuchey/mTPC-Digitisation
+# directory in which we want the output file
+export OUT_DIR_WORK=/volatile/halla/sbs/efuchey/mTPCdig_out
 
-echo "Work input directory is $IN_DIR_WORK"
-echo "Work output directory is $OUT_DIR_WORK"
+echo "Work input directory is "$IN_DIR_WORK
+echo "Work output directory is "$OUT_DIR_WORK
 
 # Make temporary directories etc
-set tempdirfile = $TEMPDIR/$RUNNUMBER
-mkdir -p $tempdirfile
+#set tempdirfile = $TEMPDIR/$RUNNUMBER
+#mkdir -p $tempdirfile
 
-set SimFileName = "g4sbsout_EPCEvents_$RUNNUMBER.root"
+#set SimFileName = "g4sbsout_EPCEvents_$RUNNUMBER.root"
 
-cp ${IN_DIR_WORK}/$SimFileName ${tempdirfile}/
+#cp ${IN_DIR_WORK}/$SimFileName ${tempdirfile}/
 
-set SimFile = "${tempdirfile}/$SimFileName"
-echo "sim file $SimFile"
-set SimFileRoot = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER"
-echo "sim file for root $SimFileRoot"
+#set SimFile = "${tempdirfile}/$SimFileName"
+#echo "sim file $SimFile"
+#set SimFileRoot = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER"
+#echo "sim file for root $SimFileRoot"
 
-cd ${SimDir}
-# april2026, below is simple
-#root -b -q 'DigiSimpleFarm.cpp('$RUNNUMBER')'
-# april 2026 below is for with charge share
-root -b -q 'FarmDigiChargeShare.cpp('$RUNNUMBER')'
+cd $SIMDIR
+root -b -q 'DigiSimpleFarm.cpp('$IN_DIR_WORK'/'$INFILE', '$OUT_DIR_WORK', '$NEVENTS', '$FIRSTEV')'
+#root -b -q 'FarmDigiChargeShare.cpp('$RUNNUMBER')'
 
 # Tidy up
 #cd ${BATCH_DIR}
-cd ${SimDir}
+#cd ${SimDir}
 
-set OutFileName = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER.txt"
+#set OutFileName = "${tempdirfile}/g4sbsout_EPCEvents_$RUNNUMBER.txt"
 
-cp $OutFileName ${OUT_DIR_WORK}/
-rm -f $SimFile
-rm -rf $OutFileName
-rm -rf ${tempdirfile}
+#cp $OutFileName ${OUT_DIR_WORK}/
+#rm -f $SimFile
+#rm -rf $OutFileName
+#rm -rf ${tempdirfile}
