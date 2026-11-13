@@ -46,7 +46,7 @@ const Int_t GEMGain = 1000;//700;//1000; //is typical gem gain 1k?
 // START MAIN FUNCTION
 // void DigiSimpleFarm(const char *infile = "/w/work0/home/rachel/HallA/TDIS/EventsFromSteve/Sim/g4sbsout_EPCEvents_0"){
 //void DigiSimpleFarm(Int_t EvStart){
-void DigiSimpleFarm(const char* filelist, const TString* outpath = "", const Int_t Nevents = 10000, const Int_t EvStart = 0){
+void DigiSimpleFarm(const char* filelist, const TString* outpath, const Int_t Nevents = 10000, const Int_t EvStart = 0){
 
   //============================================================================
   // CHECK START EVENT
@@ -58,24 +58,24 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath = "", const Int
   // int id = atoi(str.c_str());
   // cout << "testing id " << id << endl;
   // Int_t EvStart=id;
-  Double_t POIEnergyDeposit[10][21][122];//Energy deposit due to "Primaries" ()
-  Double_t TotalEnergyDeposit[10][21][122];
-  //Int_t PID_poihit[10][21][122];//PID of largest energy deposit
-  Double_t TotalTime_poihit[10][21][122];
-  Double_t ZtoGEM_poihit[10][21][122];
-  Double_t x_poihit[10][21][122];
-  Double_t y_poihit[10][21][122];
-  Double_t z_poihit[10][21][122];
-  Int_t PID_hiedephit[10][21][122];//PID of largest energy deposit
-  Double_t TotalTime_hiedephit[10][21][122];
-  Double_t ZtoGEM_hiedephit[10][21][122];
-  Double_t x_hiedephit[10][21][122];
-  Double_t y_hiedephit[10][21][122];
-  Double_t z_hiedephit[10][21][122];
-  Double_t hiedephit[10][21][122];
-  //Double_t ADCSamples[10][21][122][];
-  Int_t n_memset_int = nPads_mTPC*size_of(Int_t);
-  Int_t n_memset_double = nPads_mTPC*size_of(Double_t);
+  Double_t POIEnergyDeposit[10][20][120];//Energy deposit due to "Primaries" ()
+  Double_t TotalEnergyDeposit[10][20][120];
+  //Int_t PID_poihit[10][20][120];//PID of largest energy deposit
+  Double_t TotalTime_poihit[10][20][120];
+  Double_t ZtoGEM_poihit[10][20][120];
+  Double_t x_poihit[10][20][120];
+  Double_t y_poihit[10][20][120];
+  Double_t z_poihit[10][20][120];
+  Int_t PID_hiedephit[10][20][120];//PID of largest energy deposit
+  Double_t TotalTime_hiedephit[10][20][120];
+  Double_t ZtoGEM_hiedephit[10][20][120];
+  Double_t x_hiedephit[10][20][120];
+  Double_t y_hiedephit[10][20][120];
+  Double_t z_hiedephit[10][20][120];
+  Double_t hiedephit[10][20][120];
+  //Double_t ADCSamples[10][20][120][];
+  Int_t n_memset_int = nPads_mTPC*sizeof(Int_t);
+  Int_t n_memset_double = nPads_mTPC*sizeof(Double_t);
 
   //Read the file list:
   ifstream configfile(filelist);
@@ -121,8 +121,8 @@ void DigiSimpleFarm(const char* filelist, const TString* outpath = "", const Int
   while( currentline.ReadLine( configfile ) && !currentline.BeginsWith("end_beambkgd_files") ){
     if( !currentline.BeginsWith("#") ){
       f_beam = TFile::Open(currentline.Data());
-      TH2D* h2D_mTPChits_EvR_electrons = (TH1D*)f_beam->Get("h2D_mTPChits_EvR_electrons");
-      TH2D* h2D_mTPChits_RvZ_electrons = (TH1D*)f_beam->Get("h2D_mTPChits_RvZ_electrons");
+      TH2D* h2D_mTPChits_EvR_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_EvR_electrons");
+      TH2D* h2D_mTPChits_RvZ_electrons = (TH2D*)f_beam->Get("h2D_mTPChits_RvZ_electrons");
       h1_mTPChits_E_electrons = h2D_mTPChits_EvR_electrons->ProjectionY("h1_mTPChits_E_electrons", 2, 199);
       h1_mTPChits_Z_electrons = h2D_mTPChits_RvZ_electrons->ProjectionX("h1_mTPChits_Z_electrons", 2, 199);
       //Choose R projection as function of Z;

@@ -17,9 +17,11 @@ using namespace std;
 const Double_t Rout = 150.0;
 const Double_t Rin = 50.0;//40.0;
 const Int_t nPlanes = 10;
-const Int_t nRings = 21;
+const Int_t nRings = 20;
+//const Int_t nRings = 21;
 const Double_t Rpad = (Rout-Rin)/nRings;
-const Int_t nPads = 122;//120;
+const Int_t nPads = 120;
+//const Int_t nPads = 122;//120;
 
 const Double_t nPads_mTPC = nPlanes*nRings*nPads;
 
@@ -128,13 +130,14 @@ vector<Int_t> GetPadLoadedQuick(Double_t x, Double_t y, Double_t z, TH2Poly *hPa
 }
 
 
-const double PhiStart[nRings] = {0., 0., 0., 0., 0., 0., 0.,
-  0., 0., 0., 0., 0., 0., 0.,
-  0., 0., 0., 0., 0., 0., 0.};
+const double PhiStart[nRings] = {0., 0., 0., 0., 0.,
+  0., 0., 0., 0., 0.,
+  0., 0., 0., 0., 0.,
+  0., 0., 0., 0., 0.};
 const double DeltaPhi = 360.0/nPads;
 
-vector<Int_t> GetPadLoadedSuperQuick(Double_t x, Double_t y, Double_t z,
-				     Int_t& PlaneID, Int_t& RingID, Int_t PadID){
+void GetPadLoadedSuperQuick(Double_t x, Double_t y, Double_t z,
+			    Int_t& PlaneID, Int_t& RingID, Int_t PadID){
   // Double_t OuterRadius = Rout;
   // Double_t InnerRadius = Rin;
   // Double_t RingWidth = Rpad;
@@ -156,7 +159,7 @@ vector<Int_t> GetPadLoadedSuperQuick(Double_t x, Double_t y, Double_t z,
   Double_t phi = atan2(y, x)*TMath::RadToDeg();
   
   //Int_t PlaneID = -999;
-  for(Int i = 0; i<nPlanes; i++){
+  for(Int_t i = 0; i<nPlanes; i++){
     if(-250.0+i*50.0 <= z && z<= -200.0+i*50.0){
       PlaneID = i;
       break;
@@ -165,7 +168,8 @@ vector<Int_t> GetPadLoadedSuperQuick(Double_t x, Double_t y, Double_t z,
   
   //Int_t RingID = -999;
   for(Int_t ring=0; ring<nRings; ring++){
-    if(Rin+ring*RingWidth <= R && R < Rin+(ring+1)*RingWidth ){
+    //if(Rin+ring*RingWidth <= R && R < Rin+(ring+1)*RingWidth ){
+    if(Rin+ring*Rpad <= R && R < Rin+(ring+1)*Rpad ){
       RingID = ring;
       break;
     }
