@@ -168,8 +168,8 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
   
   //============================================================================
   // FLAGS AND VARIABLES
-  Int_t EventCounter = 0;
-  Int_t nevent = 0;
+  //Int_t EventCounter = 0;
+  //Int_t nevent = 0;
   TRandom3 RandomVar(0);
 
   //
@@ -208,30 +208,30 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
 
   //============================================================================
   
-  // get histo of readout pads
-  TFile *fPads =  TFile::Open("hPads2.root"); //hPads2 is steve's suggested pad phis
-  TCanvas *c1 = (TCanvas*)fPads->Get("c1");
-  TH2Poly *hReadoutPads = (TH2Poly*)c1->GetPrimitive("hPolyBins");
-  // to draw the pads
-  // TCanvas *cPads = new TCanvas();
-  // cPads->cd();
-  // hReadoutPads->Draw();
-  fPads->Close();
-  // get bin list
-  TList *bin_list=hReadoutPads->GetBins();
-  if( !bin_list ){
-    cout << "Problem in getting bin list from hReadoutPads, exitting." << endl;
-    exit (EXIT_FAILURE);
-  }
-  TIter next(bin_list);
-  TObject *obj;
-  TH2PolyBin *bin;
-  double area;
-  vector<Double_t> vbinareas;
-  while((obj=next())){
-    bin = (TH2PolyBin*) obj;
-    vbinareas.push_back(bin->GetArea());
-  }
+  // // get histo of readout pads
+  // TFile *fPads =  TFile::Open("hPads2.root"); //hPads2 is steve's suggested pad phis
+  // TCanvas *c1 = (TCanvas*)fPads->Get("c1");
+  // TH2Poly *hReadoutPads = (TH2Poly*)c1->GetPrimitive("hPolyBins");
+  // // to draw the pads
+  // // TCanvas *cPads = new TCanvas();
+  // // cPads->cd();
+  // // hReadoutPads->Draw();
+  // fPads->Close();
+  // // get bin list
+  // TList *bin_list=hReadoutPads->GetBins();
+  // if( !bin_list ){
+  //   cout << "Problem in getting bin list from hReadoutPads, exitting." << endl;
+  //   exit (EXIT_FAILURE);
+  // }
+  // TIter next(bin_list);
+  // TObject *obj;
+  // TH2PolyBin *bin;
+  // double area;
+  // vector<Double_t> vbinareas;
+  // while((obj=next())){
+  //   bin = (TH2PolyBin*) obj;
+  //   vbinareas.push_back(bin->GetArea());
+  // }
   
   // ASSIGN TREES
   // g4sbs_tdis_tree *T = new g4sbs_tdis_tree(C);
@@ -240,8 +240,16 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
   g4sbs_tree_acqu_light *T_pip = new g4sbs_tree_acqu_light(C_pip);
   g4sbs_tree_acqu_light *T_pim = new g4sbs_tree_acqu_light(C_pim);
 
-  Int_t NEventsChain = C_poi->GetEntries();
-  cout << "N events in chain is " << NEventsChain << endl << endl;
+  Long64_t NEventsChain = C_poi->GetEntries();
+  Long64_t Npqe_total = C_pqe->GetEntries();
+  Long64_t Npip_total = C_pip->GetEntries();
+  Long64_t Npim_total = C_pim->GetEntries();
+  cout << "N protons of interest in chain is " << NEventsChain << "; " << endl
+       << " Total available: " << endl
+       << "  => elastic protons: " << Npqe_total << endl
+       << "  => pi+ " << Npip_total << endl
+       << "  => pi- " << Npim_total << endl
+       << endl;
   
   // Text file for hit outputs
   // TString txtfile = "/w/work0/home/rachel/TDIS/EPC/Aug24/DigiOut/1p5T";
@@ -270,6 +278,7 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
   int planeid, ringid, padid;
 
   Bool_t POI_flag = false;
+  Bool_t Goodevent = false;
   
   Int_t PID;
   Double_t hitx, hity, hitz;
@@ -277,6 +286,10 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
   Int_t nprotons_gen, npiplus_gen, npiminus_gen, nbeambkgdhits_gen;
   Double_t acctime0, edep, hitr, hitphi;
   Int_t binz;
+
+  Long64_t ipqe_global = 0;
+  Long64_t ipip_global = 0;
+  Long64_t ipim_global = 0;
   //============================================================================
   // EVENT LOOP
   
@@ -284,6 +297,7 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
   //------------------------------------------------------------ start event loop
   // for TDIS events, Set "ProtonOfInterest" flag to true!
   for(Int_t ev_poi=0; ev_poi<Nevents; ev_poi++){
+    Goodevent = false;
     //reinitialize arrays:
     memset(POIEnergyDeposit, 0, n_memset_double);
     memset(TotalEnergyDeposit, 0, n_memset_double);
@@ -306,7 +320,12 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
     // cout << endl;
     // cout << "On event " << i << " / " << NEventsChain << endl;
     T_poi->GetEntry(EvStart+ev_poi);
-    if (EventCounter % 1000 == 0) cout << EventCounter << "/" << NEventsChain << endl;
+    if (ev_poi % 100 == 0) cout << ev_poi << "/" << NEventsChain << endl;
+    if(T_poi->SBS_mTPC_hit_nhits>=4){//very very minimum number of hits
+      Goodevent = true;
+    }else{
+      continue;
+    }
     
     //Int_t evid = EvStart+;
     TxtFileOut << "Event " << right << ev_poi << "\n";
@@ -379,6 +398,11 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
     POI_flag = false;
     nprotons_gen = RandomVar.Poisson(nprotons_avg);
     for(Int_t ev_pqe=0; ev_pqe<nprotons_gen; ev_pqe++){
+      if(ipqe_global>=Npqe_total){
+	cout << " POI Evt: " << ev_poi << " global elastic proton index beyond total number of available elastic protons: rolling back index to 0" << endl;
+	ipqe_global = 0;
+      }
+      T_pqe->GetEntry(ipqe_global);
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pqe->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -412,10 +436,16 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
 	  z_hiedephit[planeid][ringid][padid] = hitz;
 	}
       }// elastic protons hit loop
+      ipqe_global++;
     }
     
     npiplus_gen = RandomVar.Poisson(npiplus_avg);
     for(Int_t ev_pip=0; ev_pip<npiplus_gen; ev_pip++){
+      if(ipip_global>=Npip_total){
+	cout << " POI Evt: " << ev_poi << " global pi+ index beyond total number of available pi+: rolling back index to 0" << endl;
+	ipip_global = 0;
+      }
+      T_pip->GetEntry(ipip_global);
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pip->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -449,10 +479,16 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
 	  z_hiedephit[planeid][ringid][padid] = hitz;
 	}
       }// pi+ hit loop
+      ipip_global++;
     }
     
     npiminus_gen = RandomVar.Poisson(npiminus_avg);
     for(Int_t ev_pim=0; ev_pim<npiminus_gen; ev_pim++){
+      if(ipim_global>=Npim_total){
+	cout << " POI Evt: " << ev_poi << " global pi- index beyond total number of available pi-: rolling back index to 0" << endl;
+	ipim_global = 0;
+      }
+      T_pim->GetEntry(ipip_global);
       acctime0 = RandomVar.Uniform(-1000., 1000.);
       for(int hitinc = 0; hitinc<T_pim->SBS_mTPC_hit_nhits; hitinc++){
       
@@ -486,6 +522,7 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
 	  z_hiedephit[planeid][ringid][padid] = hitz;
 	}
       }// pi- hit loop
+      ipim_global++;
     }
     
     
@@ -496,7 +533,8 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
       hitz = h1_mTPChits_Z_electrons->GetRandom();
       binz = h2D_mTPChits_RvZ_electrons->GetXaxis()->FindBin(hitz);
       //h1_mTPChits_R_electrons = h2D_mTPChits_RvZ_electrons->ProjectionY("h1_mTPChits_R_electrons",2, 200);
-      hitr = h1_mTPChits_R_electrons[binz]->GetRandom();
+      //if(binz-1>=500)cout << binz << endl;
+      hitr = h1_mTPChits_R_electrons[binz-1]->GetRandom();
       hitphi = RandomVar.Uniform(0.0, 6.283185307);//0->twopi
       hitx = hitr*cos(hitphi);
       hity = hitr*sin(hitphi);
@@ -560,7 +598,7 @@ void DigiSimpleFarm(const char* filelist, const char* outpath, const Int_t Neven
       }
     }
     
-    EventCounter++;
+    //EventCounter++;
   } //------------------------------------------------------------ end event loop
  
   cout << endl;
